@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { useMedicamentos } from './hooks/useMedicamentos';
 import { useVentas } from './hooks/useVentas';
@@ -7,194 +7,265 @@ import { Dashboard } from './components/Dashboard';
 import { Inventario } from './components/Inventario';
 import { RegistroVentas } from './components/RegistroVentas';
 import { Reportes } from './components/Reportes';
-import { Login } from './components/Login';
+import { LoginPage } from './pages/LoginPage';
 import { Unauthorized } from './components/Unauthorized';
 import { ProtectedRoute } from './components/ProtectedRoute';
-import type { ViewType } from './types';
+import { ReactNode } from 'react';
 
-type AppView = ViewType | 'login' | 'unauthorized';
-
-const AppContent = () => {
-  const { user, role, loading, signOut } = useAuth();
-  const medicamentos = useMedicamentos();
-  const ventas = useVentas();
-  const { message, showMessage } = useMessage();
-  const [activeView, setActiveView] = useState<AppView>('dashboard');
-
-  const navItems = [
-    { key: 'dashboard' as ViewType, label: 'Dashboard', icon: '🏠', roles: ['admin', 'vendedor', 'viewer'] },
-    { key: 'inventario' as ViewType, label: 'Inventario', icon: '📦', roles: ['admin', 'vendedor'] },
-    { key: 'ventas' as ViewType, label: 'Registrar Venta', icon: '🛒', roles: ['admin', 'vendedor'] },
-    { key: 'reportes' as ViewType, label: 'Reportes y Balance', icon: '📊', roles: ['admin'] },
-  ];
-
-  const handleLogout = async () => {
-    await signOut();
-    setActiveView('login');
-  };
-
-  const renderContent = () => {
-    // Show login page if not authenticated
-    if (activeView === 'login' || !user) {
-      return (
-        <Login
-          onSuccess={() => setActiveView('dashboard')}
-          onSwitchToSignUp={() => {/* Could add signup view */}}
-        />
-      );
-    }
-
-    // Show unauthorized page
-    if (activeView === 'unauthorized') {
-      return (
-        <Unauthorized
-          onGoBack={() => setActiveView('dashboard')}
-          onLogout={() => setActiveView('login')}
-        />
-      );
-    }
-
-    switch (activeView) {
-      case 'inventario':
-        return (
-          <ProtectedRoute
-            allowedRoles={['admin', 'vendedor']}
-            onUnauthorized={() => setActiveView('unauthorized')}
-          >
-            <Inventario medicamentos={medicamentos} showMessage={showMessage} />
-          </ProtectedRoute>
-        );
-      case 'ventas':
-        return (
-          <ProtectedRoute
-            allowedRoles={['admin', 'vendedor']}
-            onUnauthorized={() => setActiveView('unauthorized')}
-          >
-            <RegistroVentas medicamentos={medicamentos} showMessage={showMessage} />
-          </ProtectedRoute>
-        );
-      case 'reportes':
-        return (
-          <ProtectedRoute
-            allowedRoles={['admin']}
-            onUnauthorized={() => setActiveView('unauthorized')}
-          >
-            <Reportes ventas={ventas} />
-          </ProtectedRoute>
-        );
-      case 'dashboard':
-      default:
-        return (
-          <ProtectedRoute
-            allowedRoles={['admin', 'vendedor', 'viewer']}
-            onUnauthorized={() => setActiveView('unauthorized')}
-          >
-            <Dashboard medicamentos={medicamentos} ventas={ventas} />
-          </ProtectedRoute>
-        );
-    }
-  };
+// Componente para proteger rutas - redirige a /login si no hay usuario
+const RequireAuth = ({ children }: { children: ReactNode }) => {
+  const { user, loading } = useAuth();
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen p-8 text-gray-700 bg-gray-50">
+      <div className="flex items-center justify-center min-h-screen bg-slate-50">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <div className="text-xl font-semibold">Cargando aplicación...</div>
+          <p className="text-slate-600 font-medium">Cargando...</p>
         </div>
       </div>
     );
   }
 
-  // Show login if not authenticated
   if (!user) {
+    return <Navigate to="/login" replace />;
+  }
+
+  return <>{children}</>;
+};
+
+// Componente para redirigir usuarios autenticados fuera del login
+const RedirectIfAuthenticated = ({ children }: { children: ReactNode }) => {
+  const { user, loading } = useAuth();
+
+  if (loading) {
     return (
-      <div className="min-h-screen bg-gray-100 font-sans antialiased flex flex-col">
-        <header className="bg-white shadow-md">
-          <div className="container mx-auto px-4 py-4">
-            <h1 className="text-2xl font-extrabold text-blue-700 text-center">
-              Wellness Med Manager
-            </h1>
-          </div>
-        </header>
-        <main className="flex-grow flex items-center justify-center">
-          <Login
-            onSuccess={() => setActiveView('dashboard')}
-          />
-        </main>
-        <footer className="bg-gray-800 text-white p-4 text-center text-sm">
-          © {new Date().getFullYear()} Wellness Med Manager | Desarrollado con React y Supabase
-        </footer>
+      <div className="flex items-center justify-center min-h-screen bg-slate-50">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-slate-600 font-medium">Cargando...</p>
+        </div>
       </div>
     );
   }
 
-  // Filter nav items based on user role
-  const visibleNavItems = navItems.filter(item => 
+  if (user) {
+    return <Navigate to="/dashboard" replace />;
+  }
+
+  return <>{children}</>;
+};
+
+// Layout principal con navegación
+const MainLayout = ({ children }: { children: ReactNode }) => {
+  const { user, role, signOut } = useAuth();
+  const { message } = useMessage();
+
+  const navItems = [
+    { path: '/dashboard', label: 'Dashboard', roles: ['admin', 'vendedor', 'viewer'] },
+    { path: '/inventario', label: 'Inventario', roles: ['admin', 'vendedor'] },
+    { path: '/ventas', label: 'Registrar Venta', roles: ['admin', 'vendedor'] },
+    { path: '/reportes', label: 'Reportes', roles: ['admin'] },
+  ];
+
+  const visibleNavItems = navItems.filter(item =>
     role && item.roles.includes(role)
   );
 
+  const handleLogout = async () => {
+    await signOut();
+  };
+
   return (
-    <div className="min-h-screen bg-gray-100 font-sans antialiased flex flex-col">
-      <header className="bg-white shadow-md sticky top-0 z-10">
-        <div className="container mx-auto px-4 py-4 flex flex-col sm:flex-row justify-between items-center">
-          <h1 className="text-2xl font-extrabold text-blue-700 mb-2 sm:mb-0">
+    <div className="min-h-screen bg-slate-50 flex flex-col">
+      {/* Header */}
+      <header className="bg-white border-b border-slate-200 sticky top-0 z-10">
+        <div className="container mx-auto px-4 py-4 flex flex-col sm:flex-row justify-between items-center gap-4">
+          <h1 className="text-xl font-bold text-slate-800">
             Wellness Med Manager
           </h1>
-          <nav className="flex items-center space-x-2 sm:space-x-4 overflow-x-auto pb-1">
+          <nav className="flex items-center gap-2 flex-wrap justify-center">
             {visibleNavItems.map((item) => (
-              <button
-                key={item.key}
-                onClick={() => setActiveView(item.key)}
-                className={`flex items-center px-4 py-2 text-sm font-semibold rounded-full transition-colors duration-150 whitespace-nowrap
-                  ${
-                    activeView === item.key
-                      ? 'bg-blue-600 text-white shadow-lg'
-                      : 'text-gray-600 hover:bg-gray-200'
-                  }`}
+              <a
+                key={item.path}
+                href={item.path}
+                className="px-4 py-2 text-sm font-medium rounded-lg text-slate-600 hover:bg-slate-100 transition-colors"
               >
-                {item.icon} <span className="ml-1 hidden sm:inline">{item.label}</span>
-              </button>
+                {item.label}
+              </a>
             ))}
             <button
               onClick={handleLogout}
-              className="flex items-center px-4 py-2 text-sm font-semibold rounded-full text-red-600 hover:bg-red-50 transition-colors duration-150 whitespace-nowrap"
+              className="px-4 py-2 text-sm font-medium rounded-lg text-red-600 hover:bg-red-50 transition-colors"
             >
-              <span className="mr-1">🚪</span>
-              <span className="hidden sm:inline">Salir</span>
+              Cerrar sesión
             </button>
           </nav>
         </div>
       </header>
 
-      <main className="container mx-auto px-4 py-8 flex-grow">
+      {/* Main content */}
+      <main className="container mx-auto px-4 py-6 flex-grow">
+        {/* User info */}
+        <div className="mb-4 text-sm text-slate-500">
+          Usuario: {user?.email} | Rol: <span className="font-medium capitalize">{role || 'Sin rol'}</span>
+        </div>
+
+        {/* Toast message */}
         {message && (
-          <div className="fixed top-20 right-4 p-4 bg-yellow-400 text-gray-800 font-semibold rounded-lg shadow-xl z-50 transition-opacity duration-300">
+          <div className="fixed top-20 right-4 p-4 bg-blue-600 text-white font-medium rounded-lg shadow-lg z-50">
             {message}
           </div>
         )}
 
-        <div className="mb-4 flex justify-between items-center text-xs text-gray-500">
-          <span>
-            Usuario: {user?.email || 'N/A'} | Rol: <span className="font-semibold capitalize">{role || 'Sin rol'}</span>
-          </span>
-        </div>
-
-        {renderContent()}
+        {children}
       </main>
 
-      <footer className="bg-gray-800 text-white p-4 text-center text-sm mt-8">
-        © {new Date().getFullYear()} Wellness Med Manager | Desarrollado con React y Supabase
+      {/* Footer */}
+      <footer className="bg-slate-800 text-white p-4 text-center text-sm">
+        © {new Date().getFullYear()} Wellness Med Manager
       </footer>
     </div>
   );
 };
 
+// Páginas con datos
+const DashboardPage = () => {
+  const medicamentos = useMedicamentos();
+  const ventas = useVentas();
+  return <Dashboard medicamentos={medicamentos} ventas={ventas} />;
+};
+
+const InventarioPage = () => {
+  const medicamentos = useMedicamentos();
+  const { showMessage } = useMessage();
+  return <Inventario medicamentos={medicamentos} showMessage={showMessage} />;
+};
+
+const VentasPage = () => {
+  const medicamentos = useMedicamentos();
+  const { showMessage } = useMessage();
+  return <RegistroVentas medicamentos={medicamentos} showMessage={showMessage} />;
+};
+
+const ReportesPage = () => {
+  const ventas = useVentas();
+  return <Reportes ventas={ventas} />;
+};
+
+// App principal con rutas
+const AppRoutes = () => {
+  return (
+    <Routes>
+      {/* Ruta de login - redirige a dashboard si ya está autenticado */}
+      <Route
+        path="/login"
+        element={
+          <RedirectIfAuthenticated>
+            <LoginPage />
+          </RedirectIfAuthenticated>
+        }
+      />
+
+      {/* Ruta de no autorizado */}
+      <Route
+        path="/unauthorized"
+        element={
+          <RequireAuth>
+            <MainLayout>
+              <Unauthorized
+                onGoBack={() => window.history.back()}
+                onLogout={() => window.location.href = '/login'}
+              />
+            </MainLayout>
+          </RequireAuth>
+        }
+      />
+
+      {/* Dashboard - accesible para todos los roles */}
+      <Route
+        path="/dashboard"
+        element={
+          <RequireAuth>
+            <MainLayout>
+              <ProtectedRoute
+                allowedRoles={['admin', 'vendedor', 'viewer']}
+                onUnauthorized={() => window.location.href = '/unauthorized'}
+              >
+                <DashboardPage />
+              </ProtectedRoute>
+            </MainLayout>
+          </RequireAuth>
+        }
+      />
+
+      {/* Inventario - solo admin y vendedor */}
+      <Route
+        path="/inventario"
+        element={
+          <RequireAuth>
+            <MainLayout>
+              <ProtectedRoute
+                allowedRoles={['admin', 'vendedor']}
+                onUnauthorized={() => window.location.href = '/unauthorized'}
+              >
+                <InventarioPage />
+              </ProtectedRoute>
+            </MainLayout>
+          </RequireAuth>
+        }
+      />
+
+      {/* Ventas - solo admin y vendedor */}
+      <Route
+        path="/ventas"
+        element={
+          <RequireAuth>
+            <MainLayout>
+              <ProtectedRoute
+                allowedRoles={['admin', 'vendedor']}
+                onUnauthorized={() => window.location.href = '/unauthorized'}
+              >
+                <VentasPage />
+              </ProtectedRoute>
+            </MainLayout>
+          </RequireAuth>
+        }
+      />
+
+      {/* Reportes - solo admin */}
+      <Route
+        path="/reportes"
+        element={
+          <RequireAuth>
+            <MainLayout>
+              <ProtectedRoute
+                allowedRoles={['admin']}
+                onUnauthorized={() => window.location.href = '/unauthorized'}
+              >
+                <ReportesPage />
+              </ProtectedRoute>
+            </MainLayout>
+          </RequireAuth>
+        }
+      />
+
+      {/* Redirigir raíz a dashboard o login */}
+      <Route path="/" element={<Navigate to="/dashboard" replace />} />
+
+      {/* Cualquier otra ruta redirige a dashboard */}
+      <Route path="*" element={<Navigate to="/dashboard" replace />} />
+    </Routes>
+  );
+};
+
 function App() {
   return (
-    <AuthProvider>
-      <AppContent />
-    </AuthProvider>
+    <BrowserRouter>
+      <AuthProvider>
+        <AppRoutes />
+      </AuthProvider>
+    </BrowserRouter>
   );
 }
 
