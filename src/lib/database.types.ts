@@ -1,6 +1,34 @@
+export type UserRole = 'admin' | 'vendedor' | 'viewer';
+
 export type Database = {
   public: {
     Tables: {
+      profiles: {
+        Row: {
+          id: string;
+          email: string | null;
+          role: UserRole;
+          full_name: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id: string;
+          email?: string | null;
+          role?: UserRole;
+          full_name?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          email?: string | null;
+          role?: UserRole;
+          full_name?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+      };
       medicamentos: {
         Row: {
           id: string;
