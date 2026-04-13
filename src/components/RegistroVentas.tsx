@@ -1,9 +1,9 @@
 import { useState, useMemo } from 'react';
 import { supabase } from '../lib/supabase';
-import { InputField } from './InputField';
 import { formatCurrency } from '../utils/format';
 import { useAuth } from '../contexts/AuthContext';
 import type { Medicamento } from '../types';
+import { ShoppingCart, CreditCard, Banknote } from 'lucide-react';
 
 interface RegistroVentasProps {
   medicamentos: Medicamento[];
@@ -27,11 +27,11 @@ export const RegistroVentas = ({ medicamentos, showMessage }: RegistroVentasProp
   const handleSale = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!medInfo || quantity <= 0) {
-      showMessage('Por favor, seleccione un medicamento y una cantidad válida.');
+      showMessage('Seleccione un medicamento y cantidad válida.');
       return;
     }
     if (medInfo.stock < quantity) {
-      showMessage(`Stock insuficiente. Solo quedan ${medInfo.stock} unidades de ${medInfo.nombre}.`);
+      showMessage(`Stock insuficiente. Disponible: ${medInfo.stock} unidades.`);
       return;
     }
 
@@ -63,92 +63,116 @@ export const RegistroVentas = ({ medicamentos, showMessage }: RegistroVentasProp
 
       if (stockError) throw stockError;
 
-      showMessage(
-        `Venta de ${quantity} x ${medInfo.nombre} registrada. Total: ${formatCurrency(totalSale)}`
-      );
+      showMessage(`Venta registrada: ${quantity}x ${medInfo.nombre} - ${formatCurrency(totalSale)}`);
 
       setSelectedMed('');
       setQuantity(1);
       setPaymentMethod('Efectivo');
     } catch (error) {
       console.error('Error al registrar venta:', error);
-      showMessage('Error al registrar la venta. Revise la consola.');
+      showMessage('Error al registrar la venta.');
     } finally {
       setIsSaving(false);
     }
   };
 
   return (
-    <div className="space-y-6">
-      <h2 className="text-3xl font-bold text-gray-800">Registrar Venta</h2>
+    <div className="space-y-4">
+      <h2 className="text-xl font-semibold text-neutral-100 tracking-tight">Registrar Venta</h2>
 
-      <form onSubmit={handleSale} className="p-6 bg-white rounded-xl shadow-lg space-y-4 max-w-lg mx-auto">
-        <div>
-          <label htmlFor="med-select" className="block text-sm font-medium text-gray-700">
-            Medicamento
-          </label>
-          <select
-            id="med-select"
-            value={selectedMed}
-            onChange={(e) => setSelectedMed(e.target.value)}
-            className="block w-full px-3 py-2 mt-1 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-            required
-          >
-            <option value="">-- Seleccione un medicamento --</option>
-            {medicamentos.map((m) => (
-              <option key={m.id} value={m.id} disabled={m.stock <= 0}>
-                {m.nombre} ({m.lab}) - {formatCurrency(m.precio)} (Stock: {m.stock})
-              </option>
-            ))}
-          </select>
-        </div>
-
-        <div className="grid grid-cols-2 gap-4">
-          <InputField
-            label="Cantidad"
-            name="quantity"
-            type="number"
-            value={quantity}
-            onChange={(e) => setQuantity(parseInt(e.target.value) || 1)}
-            required
-          />
+      <div className="max-w-md">
+        <form onSubmit={handleSale} className="card-dark space-y-4">
           <div>
-            <label htmlFor="payment-method" className="block text-sm font-medium text-gray-700">
-              Forma de Pago
-            </label>
+            <label className="block text-xs text-neutral-500 mb-1.5">Medicamento</label>
             <select
-              id="payment-method"
-              value={paymentMethod}
-              onChange={(e) => setPaymentMethod(e.target.value)}
-              className="block w-full px-3 py-2 mt-1 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+              value={selectedMed}
+              onChange={(e) => setSelectedMed(e.target.value)}
+              className="input-dark"
               required
             >
-              <option value="Efectivo">Efectivo</option>
-              <option value="Transferencia">Transferencia</option>
+              <option value="">Seleccionar medicamento</option>
+              {medicamentos.map((m) => (
+                <option key={m.id} value={m.id} disabled={m.stock <= 0}>
+                  {m.nombre} ({m.lab}) - {formatCurrency(m.precio)} [{m.stock} disp.]
+                </option>
+              ))}
             </select>
           </div>
-        </div>
 
-        {medInfo && (
-          <div className="p-4 mt-4 text-center bg-blue-50 rounded-lg">
-            <p className="text-lg font-semibold text-gray-700">Resumen:</p>
-            <p className="text-3xl font-bold text-blue-600">{formatCurrency(totalSale)}</p>
-            <p className="text-sm text-gray-500">Ganancia Estimada: {formatCurrency(estimatedProfit)}</p>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs text-neutral-500 mb-1.5">Cantidad</label>
+              <input
+                type="number"
+                min={1}
+                value={quantity}
+                onChange={(e) => setQuantity(parseInt(e.target.value) || 1)}
+                className="input-dark"
+                required
+              />
+            </div>
+            <div>
+              <label className="block text-xs text-neutral-500 mb-1.5">Forma de Pago</label>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => setPaymentMethod('Efectivo')}
+                  className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-medium rounded border transition-colors ${
+                    paymentMethod === 'Efectivo'
+                      ? 'bg-emerald-950/50 border-emerald-700 text-emerald-400'
+                      : 'bg-neutral-800 border-neutral-700 text-neutral-400 hover:border-neutral-600'
+                  }`}
+                >
+                  <Banknote size={14} />
+                  Efectivo
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPaymentMethod('Transferencia')}
+                  className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-medium rounded border transition-colors ${
+                    paymentMethod === 'Transferencia'
+                      ? 'bg-blue-950/50 border-blue-700 text-blue-400'
+                      : 'bg-neutral-800 border-neutral-700 text-neutral-400 hover:border-neutral-600'
+                  }`}
+                >
+                  <CreditCard size={14} />
+                  Transfer
+                </button>
+              </div>
+            </div>
           </div>
-        )}
 
-        <button
-          type="submit"
-          disabled={isSaving || !medInfo || quantity <= 0 || medInfo.stock < quantity}
-          className={`w-full py-3 text-white font-bold rounded-lg shadow-md transition duration-150 ${
-            isSaving || !medInfo || medInfo.stock < quantity
-              ? 'bg-gray-400 cursor-not-allowed'
-              : 'bg-green-600 hover:bg-green-700'
-          }`}
-        >
-          {isSaving ? 'Registrando...' : 'Confirmar Venta'}
-        </button>
-      </form>
+          {medInfo && (
+            <div className="p-4 rounded-lg bg-neutral-800/50 border border-neutral-700">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-xs text-neutral-500">Total</span>
+                <span className="text-2xl font-semibold text-emerald-400 tabular-nums">
+                  {formatCurrency(totalSale)}
+                </span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-xs text-neutral-500">Ganancia</span>
+                <span className="text-sm font-medium text-amber-400 tabular-nums">
+                  +{formatCurrency(estimatedProfit)}
+                </span>
+              </div>
+            </div>
+          )}
+
+          <button
+            type="submit"
+            disabled={isSaving || !medInfo || quantity <= 0 || (medInfo && medInfo.stock < quantity)}
+            className={`w-full flex items-center justify-center gap-2 py-2.5 text-sm font-medium rounded transition-colors ${
+              isSaving || !medInfo || (medInfo && medInfo.stock < quantity)
+                ? 'bg-neutral-700 text-neutral-500 cursor-not-allowed'
+                : 'bg-emerald-600 text-white hover:bg-emerald-500'
+            }`}
+          >
+            <ShoppingCart size={16} />
+            {isSaving ? 'Registrando...' : 'Confirmar Venta'}
+          </button>
+        </form>
+      </div>
     </div>
   );
 };

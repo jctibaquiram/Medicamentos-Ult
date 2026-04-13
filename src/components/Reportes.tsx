@@ -2,6 +2,7 @@ import { useState, useCallback, useMemo } from 'react';
 import { StatCard } from './StatCard';
 import { formatCurrency } from '../utils/format';
 import type { Venta } from '../types';
+import { DollarSign, TrendingDown, TrendingUp, Banknote, CreditCard, Trophy } from 'lucide-react';
 
 interface ReportesProps {
   ventas: Venta[];
@@ -81,31 +82,29 @@ export const Reportes = ({ ventas }: ReportesProps) => {
   }, [ventas, startDate, endDate]);
 
   const reportTitle = useMemo(() => {
-    const fmt = (date: Date) => date.toLocaleDateString('es-CO');
+    const fmt = (date: Date) => date.toLocaleDateString('es-CO', { day: '2-digit', month: 'short' });
     switch (reportType) {
       case 'daily':
         return `Reporte Diario: ${fmt(startDate)}`;
       case 'weekly':
-        return `Balance Semanal: Del ${fmt(startDate)} al ${fmt(new Date(endDate.getTime() - 1))}`;
+        return `Balance Semanal: ${fmt(startDate)} - ${fmt(new Date(endDate.getTime() - 1))}`;
       case 'monthly':
-        return `Reporte Mensual: ${startDate.toLocaleDateString('es-CO', {
-          year: 'numeric',
-          month: 'long',
-        })}`;
+        return startDate.toLocaleDateString('es-CO', { year: 'numeric', month: 'long' });
       case 'yearly':
-        return `Reporte Anual: ${startDate.getFullYear()}`;
+        return `Año ${startDate.getFullYear()}`;
       default:
-        return 'Reporte General';
+        return 'Reporte';
     }
   }, [reportType, startDate, endDate]);
 
   return (
-    <div className="space-y-6">
-      <h2 className="text-3xl font-bold text-gray-800">Reportes y Balance Financiero</h2>
+    <div className="space-y-4">
+      <h2 className="text-xl font-semibold text-neutral-100 tracking-tight">Reportes</h2>
 
-      <div className="p-6 bg-white rounded-xl shadow-lg flex flex-wrap gap-4 items-end">
-        <div className="flex flex-col">
-          <label className="text-sm font-medium text-gray-700 mb-1">Tipo de Reporte</label>
+      {/* Controles */}
+      <div className="card-dark flex flex-wrap items-end gap-4">
+        <div>
+          <label className="block text-xs text-neutral-500 mb-1.5">Tipo</label>
           <select
             value={reportType}
             onChange={(e) => {
@@ -119,21 +118,19 @@ export const Reportes = ({ ventas }: ReportesProps) => {
                 setSelectedDate(now.toISOString().substring(0, 10));
               }
             }}
-            className="p-2 border rounded-lg"
+            className="input-dark w-48"
           >
-            <option value="weekly">Balance Semanal (Cruce con Secretaria)</option>
-            <option value="daily">Reporte Diario</option>
-            <option value="monthly">Reporte Mensual</option>
-            <option value="yearly">Reporte Anual</option>
+            <option value="weekly">Semanal</option>
+            <option value="daily">Diario</option>
+            <option value="monthly">Mensual</option>
+            <option value="yearly">Anual</option>
           </select>
         </div>
 
-        <div className="flex flex-col">
-          <label className="text-sm font-medium text-gray-700 mb-1">Seleccionar Fecha/Período</label>
+        <div>
+          <label className="block text-xs text-neutral-500 mb-1.5">Período</label>
           <input
-            type={
-              reportType === 'monthly' ? 'month' : reportType === 'yearly' ? 'number' : 'date'
-            }
+            type={reportType === 'monthly' ? 'month' : reportType === 'yearly' ? 'number' : 'date'}
             value={
               reportType === 'monthly'
                 ? selectedDate.substring(0, 7)
@@ -144,91 +141,95 @@ export const Reportes = ({ ventas }: ReportesProps) => {
             onChange={(e) => setSelectedDate(e.target.value)}
             min={reportType === 'yearly' ? 2023 : undefined}
             max={reportType === 'yearly' ? new Date().getFullYear() + 1 : undefined}
-            className="p-2 border rounded-lg"
+            className="input-dark"
           />
         </div>
       </div>
 
-      <div className="p-6 bg-white rounded-xl shadow-2xl space-y-6">
-        <h3 className="text-2xl font-bold text-blue-700 border-b pb-2">{reportTitle}</h3>
-        <p className="text-sm text-gray-500">
-          Período analizado: {startDate.toLocaleDateString('es-CO')} -{' '}
-          {endDate.toLocaleDateString('es-CO')}
-        </p>
+      {/* Resumen */}
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <h3 className="text-sm font-medium text-neutral-400">{reportTitle}</h3>
+          <span className="text-xs text-neutral-600">
+            {reportData.totalTransacciones} transacciones
+          </span>
+        </div>
 
-        <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
           <StatCard
-            title="Total Ventas (Ingreso Bruto)"
+            title="Ventas Brutas"
             value={formatCurrency(reportData.totalVenta)}
-            icon="💵"
-            color="bg-green-100 text-green-800"
-            textClass="text-green-800"
+            icon={<DollarSign size={16} className="text-emerald-400" />}
+            color="bg-emerald-950/40 border-emerald-900/50"
           />
           <StatCard
-            title="Costo Total de Medicamentos (COGS)"
+            title="Costo (COGS)"
             value={formatCurrency(reportData.totalCosto)}
-            icon="📉"
-            color="bg-red-100 text-red-800"
-            textClass="text-red-800"
+            icon={<TrendingDown size={16} className="text-red-400" />}
+            color="bg-red-950/40 border-red-900/50"
           />
           <StatCard
-            title="Ganancia Neta del Período"
+            title="Ganancia Neta"
             value={formatCurrency(reportData.totalGanancia)}
-            icon="🚀"
-            color="bg-yellow-100 text-yellow-800"
-            textClass="text-yellow-800"
+            icon={<TrendingUp size={16} className="text-amber-400" />}
+            color="bg-amber-950/40 border-amber-900/50"
           />
         </div>
 
-        <div
-          className={`p-6 border-4 rounded-xl ${
-            reportType === 'weekly'
-              ? 'border-blue-500 bg-blue-50'
-              : 'border-gray-200 bg-gray-50'
-          }`}
-        >
-          <h4 className="text-xl font-bold mb-3 text-blue-700">
-            Cuadre de Caja y Bancos ({reportType === 'weekly' ? 'CRUCE SEMANAL' : 'Detalle de Pagos'})
+        {/* Cuadre de caja */}
+        <div className={`card-dark ${reportType === 'weekly' ? 'ring-1 ring-blue-800' : ''}`}>
+          <h4 className="text-sm font-medium text-neutral-300 mb-4">
+            Cuadre de Caja {reportType === 'weekly' && '(Cruce Semanal)'}
           </h4>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <p className="text-sm font-medium text-gray-600">
-                Total Recibido en EFECTIVO (Para Secretaría)
-              </p>
-              <p className="text-3xl font-extrabold text-green-700">
-                {formatCurrency(reportData.efectivo)}
-              </p>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded bg-emerald-950/50">
+                <Banknote size={18} className="text-emerald-400" />
+              </div>
+              <div>
+                <p className="text-xs text-neutral-500">Efectivo</p>
+                <p className="text-lg font-semibold text-emerald-400 tabular-nums">
+                  {formatCurrency(reportData.efectivo)}
+                </p>
+              </div>
             </div>
-            <div>
-              <p className="text-sm font-medium text-gray-600">
-                Total Recibido por TRANSFERENCIA (Para Cuenta Bancaria)
-              </p>
-              <p className="text-3xl font-extrabold text-blue-700">
-                {formatCurrency(reportData.transferencia)}
-              </p>
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded bg-blue-950/50">
+                <CreditCard size={18} className="text-blue-400" />
+              </div>
+              <div>
+                <p className="text-xs text-neutral-500">Transferencia</p>
+                <p className="text-lg font-semibold text-blue-400 tabular-nums">
+                  {formatCurrency(reportData.transferencia)}
+                </p>
+              </div>
             </div>
           </div>
-          <p className="mt-4 text-sm text-gray-600 font-semibold">
-            Suma de Ambos Métodos: {formatCurrency(reportData.efectivo + reportData.transferencia)}{' '}
-            (Debe coincidir con Total Ventas).
-          </p>
         </div>
 
-        <div className="mt-6">
-          <h4 className="text-xl font-bold text-gray-700 mb-3">
-            Top 5 Productos Vendidos (Unidades)
-          </h4>
-          <ol className="list-decimal pl-5 space-y-1">
-            {reportData.topProducts.length > 0 ? (
-              reportData.topProducts.map(([name, count], index) => (
-                <li key={index} className="text-gray-600 font-medium">
-                  {name}: <span className="font-bold">{count}</span> unidades
-                </li>
-              ))
-            ) : (
-              <p className="text-gray-500 italic">No hay ventas registradas en este período.</p>
-            )}
-          </ol>
+        {/* Top productos */}
+        <div className="card-dark">
+          <div className="flex items-center gap-2 mb-3">
+            <Trophy size={14} className="text-amber-400" />
+            <h4 className="text-sm font-medium text-neutral-300">Top 5 Productos</h4>
+          </div>
+          {reportData.topProducts.length > 0 ? (
+            <div className="space-y-2">
+              {reportData.topProducts.map(([name, count], index) => (
+                <div key={index} className="flex items-center justify-between">
+                  <span className="text-sm text-neutral-400">
+                    <span className="text-neutral-600 mr-2">{index + 1}.</span>
+                    {name}
+                  </span>
+                  <span className="text-sm font-medium text-neutral-200 tabular-nums">
+                    {count} uds
+                  </span>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-sm text-neutral-500">Sin ventas en este período.</p>
+          )}
         </div>
       </div>
     </div>
