@@ -39,7 +39,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         .single();
 
       if (error) throw error;
-      // El 'as any' evita el error de Property 'role' does not exist
       return (data as any)?.role as UserRole || null;
     } catch (error) {
       console.error('Error fetching user role:', error);
@@ -48,32 +47,57 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   useEffect(() => {
-    // 1. Check sesión inicial
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      
-      if (session?.user) {
-        fetchUserRole(session.user.id).then(setRole);
-      }
-      setLoading(false);
-    });
+    let isMounted = true;
 
-    // 2. Escuchar cambios en la autenticación
+    const initAuth = async () => {
+      try {
+        // Timeout de seguridad: si después de 3 segundos no hay respuesta, continuar sin sesión
+        const timeoutPromise = new Promise<{ data: { session: null } }>((resolve) => {
+          setTimeout(() => resolve({ data: { session: null } }), 3000);
+        });
+
+        const sessionPromise = supabase.auth.getSession();
+        
+        const { data: { session } } = await Promise.race([sessionPromise, timeoutPromise]);
+        
+        if (!isMounted) return;
+
+        setSession(session);
+        setUser(session?.user ?? null);
+
+        if (session?.user) {
+          const userRole = await fetchUserRole(session.user.id);
+          if (isMounted) setRole(userRole);
+        }
+      } catch (error) {
+        console.error('Error initializing auth:', error);
+      } finally {
+        if (isMounted) setLoading(false);
+      }
+    };
+
+    initAuth();
+
+    // Escuchar cambios en la autenticación
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
+      if (!isMounted) return;
+      
       setSession(session);
       setUser(session?.user ?? null);
-      
+
       if (session?.user) {
         const userRole = await fetchUserRole(session.user.id);
-        setRole(userRole);
+        if (isMounted) setRole(userRole);
       } else {
         setRole(null);
       }
       setLoading(false);
     });
 
-    return () => subscription.unsubscribe();
+    return () => {
+      isMounted = false;
+      subscription.unsubscribe();
+    };
   }, []);
 
   const signOut = async () => {

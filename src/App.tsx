@@ -45,12 +45,15 @@ const RoleGuard = ({
 };
 
 function AppRoutes() {
+  console.log('[v0] AppRoutes: Renderizando...');
   const { user, loading } = useAuth();
+  console.log('[v0] AppRoutes: Auth state:', { user: !!user, loading });
   const { medicamentos } = useMedicamentos();
   const { ventas } = useVentas();
   const { message, showMessage } = useMessage();
 
   if (loading) {
+    console.log('[v0] AppRoutes: Mostrando loading...');
     return (
       <div className="h-screen w-screen flex items-center justify-center bg-neutral-950">
         <div className="flex flex-col items-center gap-3">
