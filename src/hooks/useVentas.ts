@@ -43,5 +43,5 @@ export const useVentas = () => {
     };
   }, []);
 
-  return ventas;
+  return { ventas };
 };

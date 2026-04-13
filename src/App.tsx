@@ -7,9 +7,8 @@ import Unauthorized from './components/Unauthorized';
 
 // Layout y Protección
 import { Layout } from './components/Layout';
-import { ProtectedRoute } from './components/ProtectedRoute';
 
-// Componentes de contenido (placeholders para rutas no implementadas)
+// Componentes de contenido
 import { Dashboard } from './components/Dashboard';
 import { Inventario } from './components/Inventario';
 import { RegistroVentas } from './components/RegistroVentas';
@@ -20,13 +19,30 @@ import { useMedicamentos } from './hooks/useMedicamentos';
 import { useVentas } from './hooks/useVentas';
 import { useMessage } from './hooks/useMessage';
 
-// Placeholder para Usuarios (implementar después)
+// Placeholder para Usuarios
 const Usuarios = () => (
   <div className="space-y-4">
     <h1 className="text-2xl font-semibold text-neutral-100">Gestión de Usuarios</h1>
     <p className="text-neutral-400 text-sm">Módulo en desarrollo.</p>
   </div>
 );
+
+// Componente para verificar rol
+const RoleGuard = ({ 
+  children, 
+  allowedRoles 
+}: { 
+  children: React.ReactNode; 
+  allowedRoles: string[] 
+}) => {
+  const { role } = useAuth();
+  
+  if (role && !allowedRoles.includes(role)) {
+    return <Navigate to="/unauthorized" replace />;
+  }
+  
+  return <>{children}</>;
+};
 
 function AppRoutes() {
   const { user, loading } = useAuth();
@@ -45,6 +61,17 @@ function AppRoutes() {
     );
   }
 
+  // Si no hay usuario, mostrar login
+  if (!user) {
+    return (
+      <Routes>
+        <Route path="/login" element={<LoginPage />} />
+        <Route path="*" element={<Navigate to="/login" replace />} />
+      </Routes>
+    );
+  }
+
+  // Usuario autenticado - mostrar app con layout
   return (
     <>
       {/* Mensaje global */}
@@ -55,27 +82,14 @@ function AppRoutes() {
       )}
 
       <Routes>
-        {/* Ruta pública: Login */}
-        <Route
-          path="/login"
-          element={!user ? <LoginPage /> : <Navigate to="/dashboard" />}
-        />
-
-        {/* Rutas protegidas con Layout */}
-        <Route
-          element={
-            <ProtectedRoute allowedRoles={['admin', 'empleado', 'vendedor']}>
-              <Layout />
-            </ProtectedRoute>
-          }
-        >
+        <Route element={<Layout />}>
           {/* Dashboard - Solo Admin */}
           <Route
             path="/dashboard"
             element={
-              <ProtectedRoute allowedRoles={['admin']}>
+              <RoleGuard allowedRoles={['admin']}>
                 <Dashboard medicamentos={medicamentos} ventas={ventas} />
-              </ProtectedRoute>
+              </RoleGuard>
             }
           />
 
@@ -83,9 +97,9 @@ function AppRoutes() {
           <Route
             path="/inventario"
             element={
-              <ProtectedRoute allowedRoles={['admin', 'empleado']}>
+              <RoleGuard allowedRoles={['admin', 'empleado']}>
                 <Inventario medicamentos={medicamentos} showMessage={showMessage} />
-              </ProtectedRoute>
+              </RoleGuard>
             }
           />
 
@@ -93,9 +107,9 @@ function AppRoutes() {
           <Route
             path="/ventas"
             element={
-              <ProtectedRoute allowedRoles={['admin', 'empleado']}>
+              <RoleGuard allowedRoles={['admin', 'empleado']}>
                 <RegistroVentas medicamentos={medicamentos} showMessage={showMessage} />
-              </ProtectedRoute>
+              </RoleGuard>
             }
           />
 
@@ -103,9 +117,9 @@ function AppRoutes() {
           <Route
             path="/reportes"
             element={
-              <ProtectedRoute allowedRoles={['admin']}>
+              <RoleGuard allowedRoles={['admin']}>
                 <Reportes ventas={ventas} />
-              </ProtectedRoute>
+              </RoleGuard>
             }
           />
 
@@ -113,17 +127,18 @@ function AppRoutes() {
           <Route
             path="/usuarios"
             element={
-              <ProtectedRoute allowedRoles={['admin']}>
+              <RoleGuard allowedRoles={['admin']}>
                 <Usuarios />
-              </ProtectedRoute>
+              </RoleGuard>
             }
           />
         </Route>
 
         {/* Rutas de control */}
         <Route path="/unauthorized" element={<Unauthorized />} />
-        <Route path="/" element={<Navigate to={user ? "/dashboard" : "/login"} />} />
-        <Route path="*" element={<Navigate to="/" />} />
+        <Route path="/login" element={<Navigate to="/dashboard" replace />} />
+        <Route path="/" element={<Navigate to="/dashboard" replace />} />
+        <Route path="*" element={<Navigate to="/dashboard" replace />} />
       </Routes>
     </>
   );

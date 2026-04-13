@@ -55,5 +55,5 @@ export const useMedicamentos = () => {
     };
   }, []);
 
-  return medicamentos;
+  return { medicamentos };
 };
