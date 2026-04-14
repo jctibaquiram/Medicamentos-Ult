@@ -1,27 +1,61 @@
+import { useMemo } from 'react';
 import { StatCard } from './StatCard';
 import { formatCurrency } from '../utils/format';
-import type { Medicamento, Venta } from '../types';
+import { useMedicamentos } from '../hooks/useMedicamentos';
+import { useVentas } from '../hooks/useVentas';
 
-interface DashboardProps {
-  medicamentos: Medicamento[];
-  ventas: Venta[];
-}
+export const Dashboard = () => {
+  const { medicamentos, loading: loadingMedicamentos } = useMedicamentos();
+  const { ventas, loading: loadingVentas } = useVentas();
 
-export const Dashboard = ({ medicamentos, ventas }: DashboardProps) => {
-  const lowStockItems = medicamentos.filter((m) => m.stock < m.min_stock);
+  const lowStockItems = useMemo(
+    () => medicamentos.filter((m) => m.stock < m.min_stock),
+    [medicamentos]
+  );
 
-  const totalStockValue = medicamentos.reduce((sum, m) => sum + m.stock * m.costo, 0);
-  const totalSalesValue = ventas.reduce((sum, v) => sum + v.total_venta, 0);
-  const totalProfitValue = ventas.reduce((sum, v) => sum + v.ganancia, 0);
+  const totalStockValue = useMemo(
+    () => medicamentos.reduce((sum, m) => sum + m.stock * m.costo, 0),
+    [medicamentos]
+  );
+  const totalSalesValue = useMemo(
+    () => ventas.reduce((sum, v) => sum + v.total_venta, 0),
+    [ventas]
+  );
+  const totalProfitValue = useMemo(
+    () => ventas.reduce((sum, v) => sum + v.ganancia, 0),
+    [ventas]
+  );
 
   const today = new Date().toDateString();
-  const todaySales = ventas.filter((v) => v.fecha.toDateString() === today);
-  const todayTotal = todaySales.reduce((sum, v) => sum + v.total_venta, 0);
-  const todayProfit = todaySales.reduce((sum, v) => sum + v.ganancia, 0);
+  const todaySales = useMemo(
+    () => ventas.filter((v) => v.fecha.toDateString() === today),
+    [ventas, today]
+  );
+  const todayTotal = useMemo(
+    () => todaySales.reduce((sum, v) => sum + v.total_venta, 0),
+    [todaySales]
+  );
+  const todayProfit = useMemo(
+    () => todaySales.reduce((sum, v) => sum + v.ganancia, 0),
+    [todaySales]
+  );
+
+  if (loadingMedicamentos || loadingVentas) {
+    return (
+      <div className="min-h-[60vh] w-full flex items-center justify-center bg-neutral-950 rounded-xl">
+        <div className="flex flex-col items-center gap-4">
+          <div className="w-8 h-8 border-2 border-emerald-500/30 border-t-emerald-500 rounded-full animate-spin" />
+          <p className="text-xs text-neutral-500 uppercase tracking-[0.2em] font-medium">
+            Cargando dashboard
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
-      <h2 className="text-3xl font-bold text-gray-800">Panel de Control (Dashboard)</h2>
+      <h2 className="text-3xl font-bold text-neutral-100">Panel de Control (Dashboard)</h2>
 
       {lowStockItems.length > 0 && (
         <div className="p-4 bg-red-100 border-l-4 border-red-500 rounded-lg shadow-md">

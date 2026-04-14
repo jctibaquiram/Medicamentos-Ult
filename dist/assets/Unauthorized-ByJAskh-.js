@@ -1,0 +1,1 @@
+import{j as e}from"./index-3m6y_N30.js";function s(){return e.jsx("div",{className:"flex h-screen items-center justify-center",children:e.jsx("h1",{className:"text-2xl font-bold text-red-600",children:"403 - No tienes permiso para ver esta sección"})})}export{s as default};

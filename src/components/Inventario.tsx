@@ -1,15 +1,18 @@
-import { useState } from 'react';
-import { supabase } from '../lib/supabase';
+import { useMemo, useState } from 'react';
 import { InputField } from './InputField';
 import { formatCurrency } from '../utils/format';
 import type { Medicamento } from '../types';
+import { useMedicamentos } from '../hooks/useMedicamentos';
+import { useMessage } from '../hooks/useMessage';
 
 interface InventarioProps {
-  medicamentos: Medicamento[];
-  showMessage: (msg: string) => void;
+  optimisticStock?: Record<string, number>;
+  onStockSync?: (medicamentoId: string, stock: number) => void;
 }
 
-export const Inventario = ({ medicamentos, showMessage }: InventarioProps) => {
+export const Inventario = ({ optimisticStock = {}, onStockSync }: InventarioProps) => {
+  const { medicamentos, loading, updateMedicamento, saveCompraStock } = useMedicamentos();
+  const { message, showMessage } = useMessage();
   const [search, setSearch] = useState('');
   const [isAdding, setIsAdding] = useState(false);
   const [newStock, setNewStock] = useState({
@@ -24,46 +27,39 @@ export const Inventario = ({ medicamentos, showMessage }: InventarioProps) => {
   });
   const [editItem, setEditItem] = useState<Medicamento | null>(null);
 
-  const filteredMedicamentos = medicamentos.filter(
-    (m) =>
-      m.nombre.toLowerCase().includes(search.toLowerCase()) ||
-      m.lab.toLowerCase().includes(search.toLowerCase())
+  const medicamentosConStock = useMemo(
+    () =>
+      medicamentos.map((m) => ({
+        ...m,
+        stock: optimisticStock[m.id] ?? m.stock,
+      })),
+    [medicamentos, optimisticStock]
+  );
+
+  const filteredMedicamentos = useMemo(
+    () =>
+      medicamentosConStock.filter(
+        (m) =>
+          m.nombre.toLowerCase().includes(search.toLowerCase()) ||
+          m.lab.toLowerCase().includes(search.toLowerCase())
+      ),
+    [medicamentosConStock, search]
   );
 
   const handleAddStock = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (newStock.stock <= 0) {
-      showMessage('La cantidad de stock a añadir debe ser positiva.');
+    const result = await saveCompraStock(newStock);
+    if (!result.ok) {
+      showMessage(result.message);
       return;
     }
 
+    if (result.data) {
+      onStockSync?.(result.data.id, result.data.stock);
+    }
+
     try {
-      const { data: existingItem } = await supabase
-        .from('medicamentos')
-        .select('*')
-        .eq('id', newStock.id)
-        .maybeSingle();
-
-      if (existingItem) {
-        const newStockQty = existingItem.stock + newStock.stock;
-        const { error } = await supabase
-          .from('medicamentos')
-          .update({
-            stock: newStockQty,
-            costo: newStock.costo,
-            precio: newStock.precio,
-            min_stock: newStock.min_stock,
-          })
-          .eq('id', newStock.id);
-
-        if (error) throw error;
-        showMessage(`Stock de ${newStock.nombre} actualizado a ${newStockQty}.`);
-      } else {
-        const { error } = await supabase.from('medicamentos').insert(newStock);
-        if (error) throw error;
-        showMessage(`Nuevo medicamento ${newStock.nombre} añadido al inventario.`);
-      }
-
+      showMessage(result.message);
       setIsAdding(false);
       setNewStock({
         id: '',
@@ -85,19 +81,18 @@ export const Inventario = ({ medicamentos, showMessage }: InventarioProps) => {
     e.preventDefault();
     if (!editItem) return;
 
-    try {
-      const { error } = await supabase
-        .from('medicamentos')
-        .update({
-          stock: editItem.stock,
-          costo: editItem.costo,
-          precio: editItem.precio,
-          min_stock: editItem.min_stock,
-        })
-        .eq('id', editItem.id);
+    const result = await updateMedicamento(editItem);
+    if (!result.ok) {
+      showMessage(result.message);
+      return;
+    }
 
-      if (error) throw error;
-      showMessage(`Medicamento ${editItem.nombre} actualizado.`);
+    if (result.data) {
+      onStockSync?.(result.data.id, result.data.stock);
+    }
+
+    try {
+      showMessage(result.message);
       setEditItem(null);
     } catch (error) {
       console.error('Error al actualizar stock:', error);
@@ -186,7 +181,27 @@ export const Inventario = ({ medicamentos, showMessage }: InventarioProps) => {
 
   return (
     <div className="space-y-6">
-      <h2 className="text-3xl font-bold text-gray-800">Gestión de Inventario</h2>
+      {message && (
+        <div className="fixed top-6 right-6 z-[100] px-5 py-3 bg-neutral-900 border border-neutral-800 rounded-lg text-sm text-neutral-200 shadow-2xl animate-in fade-in slide-in-from-top-4 duration-300">
+          <div className="flex items-center gap-3">
+            <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse" />
+            {message}
+          </div>
+        </div>
+      )}
+
+      {loading ? (
+        <div className="min-h-[60vh] w-full flex items-center justify-center bg-neutral-950 rounded-xl">
+          <div className="flex flex-col items-center gap-4">
+            <div className="w-8 h-8 border-2 border-emerald-500/30 border-t-emerald-500 rounded-full animate-spin" />
+            <p className="text-xs text-neutral-500 uppercase tracking-[0.2em] font-medium">
+              Cargando inventario
+            </p>
+          </div>
+        </div>
+      ) : (
+        <>
+      <h2 className="text-3xl font-bold text-neutral-100">Gestión de Inventario</h2>
 
       <button
         onClick={() => setIsAdding(!isAdding)}
@@ -303,6 +318,8 @@ export const Inventario = ({ medicamentos, showMessage }: InventarioProps) => {
           <p className="mt-4 text-center text-gray-500">No se encontraron medicamentos.</p>
         )}
       </div>
+        </>
+      )}
     </div>
   );
 };

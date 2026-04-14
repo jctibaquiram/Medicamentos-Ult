@@ -4,8 +4,18 @@ import type { Database } from './database.types';
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
-if (!supabaseUrl || !supabaseAnonKey) {
-  throw new Error('Missing Supabase environment variables');
+export const isSupabaseConfigured = Boolean(supabaseUrl && supabaseAnonKey);
+
+if (!isSupabaseConfigured) {
+  console.warn(
+    'Supabase is not configured. Add VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY in a .env file.'
+  );
 }
 
-export const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey);
+const fallbackUrl = 'https://placeholder.supabase.co';
+const fallbackAnonKey = 'public-anon-key-placeholder';
+
+export const supabase = createClient<Database>(
+  supabaseUrl || fallbackUrl,
+  supabaseAnonKey || fallbackAnonKey
+);

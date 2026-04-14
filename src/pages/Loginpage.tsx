@@ -25,8 +25,8 @@ export const LoginPage = () => {
         return;
       }
 
-      // Redirigir al dashboard después del login exitoso
-      navigate('/dashboard');
+      // Delega la redirección a App según el rol resuelto en AuthContext.
+      navigate('/', { replace: true });
     } catch (err) {
       setError('Ocurrió un error inesperado. Intenta de nuevo.');
     } finally {
